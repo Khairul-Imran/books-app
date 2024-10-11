@@ -22,6 +22,10 @@ public class BooksResponseParser {
     private static final Logger logger = LoggerFactory.getLogger(BooksResponseParser.class);
 
     // To limit the search results maybe...
+    // Keep in mind, they might not be returning all the available results
+    // Need to somehow make this work in a sensible way
+
+
     public SearchResponse parseBooksResponseData(String jsonPayload) {
         try(JsonReader jsonReader = Json.createReader(new StringReader(jsonPayload))) {
             JsonObject jsonObject = jsonReader.readObject();
@@ -75,79 +79,108 @@ public class BooksResponseParser {
     }
 
     private String parseCurrencyCode(JsonObject bookJson) {
-        
+        return bookJson.getJsonObject("saleInfo").getJsonObject("retailPrice").getString("currencyCode", "");
     }
 
     private int parseRetailPrice(JsonObject bookJson) {
-        
+        return bookJson.getJsonObject("saleInfo").getJsonObject("retailPrice").getInt("amount");
     }
 
     private int parseListPrice(JsonObject bookJson) {
-        
+        return bookJson.getJsonObject("saleInfo").getJsonObject("listPrice").getInt("amount");
     }
 
     private int parseRatingsCount(JsonObject bookJson) {
-        
+        return bookJson.getJsonObject("volumeInfo").getInt("ratingsCount");
     }
 
     private double parseAverageRating(JsonObject bookJson) {
-        
+        return bookJson.getJsonObject("volumeInfo").getInt("averageRating");
     }
 
     private String parseInfoLink(JsonObject bookJson) {
-        
+        return bookJson.getJsonObject("volumeInfo").getString("infoLink", "");
     }
 
     private String parsePreviewLink(JsonObject bookJson) {
-        
+        return bookJson.getJsonObject("volumeInfo").getString("previewLink", "");
     }
 
     private boolean parseIsEbook(JsonObject bookJson) {
-        
+        return bookJson.getJsonObject("saleInfo").getBoolean("isEbook");
     }
 
     private String parseThumbnailUrl(JsonObject bookJson) {
-        
+        return bookJson.getJsonObject("volumeInfo").getJsonObject("imageLinks").getString("thumbnail", "");
     }
 
     private String parseIsbn(JsonObject bookJson) {
-        
+        JsonArray industryIdentifiersJsonArray = bookJson.getJsonObject("volumeInfo").getJsonArray("industryIdentifiers");
+
+        if (industryIdentifiersJsonArray != null) {
+            for (int i = 0; i < industryIdentifiersJsonArray.size(); i++) {
+                // Store the current json object in a variable.
+                JsonObject identifier = industryIdentifiersJsonArray.getJsonObject(i);
+                if ("ISBN_13".equals(identifier.getString("type"))) {
+                    return identifier.getString("identifier");
+                }
+            }
+        }
+
+        return null;
     }
 
     private String parseLanguage(JsonObject bookJson) {
-        
+        return bookJson.getJsonObject("volumeInfo").getString("language", "");
     }
 
     private List<String> parseCategories(JsonObject bookJson) {
-        
+        List<String> categories = new ArrayList<>();
+        JsonArray categoriesJsonArray = bookJson.getJsonObject("volumeInfo").getJsonArray("categories");
+
+        if (categoriesJsonArray != null) {
+            for (int i = 0; i < categoriesJsonArray.size(); i++) {
+                categories.add(categoriesJsonArray.getString(i));
+            }
+        }
+
+        return categories;
     }
 
     private int parsePageCount(JsonObject bookJson) {
-        
+        return bookJson.getJsonObject("volumeInfo").getInt("pageCount");
     }
 
     private String parseDescription(JsonObject bookJson) {
-        
+        return bookJson.getJsonObject("volumeInfo").getString("description", "");
     }
 
     private String parsePublishedDate(JsonObject bookJson) {
-        
+        return bookJson.getJsonObject("volumeInfo").getString("publishedDate", "");
     }
 
     private String parsePublisher(JsonObject bookJson) {
-        
+        return bookJson.getJsonObject("volumeInfo").getString("publisher", "");
     }
 
     private List<String> parseAuthors(JsonObject bookJson) {
-        
+        List<String> authors = new ArrayList<>();
+        JsonArray bookAuthorsJsonArray = bookJson.getJsonObject("volumeInfo").getJsonArray("authors");
+
+        if (bookAuthorsJsonArray != null) {
+            for (int i = 0; i < bookAuthorsJsonArray.size(); i++) {
+                authors.add(bookAuthorsJsonArray.getString(i));
+            }
+        }
+
+        return authors;
     }
 
     private String parseTitle(JsonObject bookJson) {
-        
+        return bookJson.getJsonObject("volumeInfo").getString("title", "");
     }
 
     private String parseId(JsonObject bookJson) {
-        
+        return bookJson.getString("id", "");
     }
-
 }
