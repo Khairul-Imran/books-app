@@ -8,11 +8,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
+import com.example.books_app_backend.Exceptions.BookDataParsingException;
 import com.example.books_app_backend.Models.Book;
 import com.example.books_app_backend.Models.SearchResponse;
 
 import jakarta.json.Json;
 import jakarta.json.JsonArray;
+import jakarta.json.JsonException;
 import jakarta.json.JsonObject;
 import jakarta.json.JsonReader;
 import jakarta.json.JsonValue;
@@ -26,7 +28,7 @@ public class BooksResponseParser {
     // Need to somehow make this work in a sensible way
 
 
-    public SearchResponse parseBooksResponseData(String jsonPayload) {
+    public SearchResponse parseBooksResponseData(String jsonPayload) throws BookDataParsingException {
         try(JsonReader jsonReader = Json.createReader(new StringReader(jsonPayload))) {
             JsonObject jsonObject = jsonReader.readObject();
             
@@ -34,10 +36,22 @@ public class BooksResponseParser {
             List<Book> books = parseBooks(jsonObject);
 
             return new SearchResponse(totalItems, books);
-        } catch () {
-
-        } catch () {
-
+        } catch (JsonException je) {
+            // Handle JSON parsing errors
+            logger.error("Error parsing JSON: " + je.getMessage(), je);
+            throw new BookDataParsingException("Failed to parse JSON response", je);
+        } catch (IllegalStateException ise) {
+            // Handle unexpected JSON structure
+            logger.error("Unexpected JSON structure: " + ise.getMessage(), ise);
+            throw new BookDataParsingException("Unexpected structure in JSON response", ise);
+        } catch (NullPointerException npe) {
+            // Handle null values where they're not expected
+            logger.error("Null value encountered: " + npe.getMessage(), npe);
+            throw new BookDataParsingException("Null value encountered in JSON response", npe);
+        } catch (Exception e) {
+            // Catch any other unexpected exceptions
+            logger.error("Unexpected error during parsing: " + e.getMessage(), e);
+            throw new BookDataParsingException("Unexpected error during parsing", e);
         }
     }
 
