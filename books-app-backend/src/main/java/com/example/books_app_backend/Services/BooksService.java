@@ -1,5 +1,8 @@
 package com.example.books_app_backend.Services;
 
+import java.util.List;
+import java.util.Map;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -8,8 +11,11 @@ import org.springframework.http.RequestEntity;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import com.example.books_app_backend.Config.GoogleBooksApiConfig;
+import com.example.books_app_backend.Models.Book;
+import com.example.books_app_backend.Models.SearchCriteria;
 import com.example.books_app_backend.Models.SearchResponse;
 import com.example.books_app_backend.Utils.BooksResponseParser;
 
@@ -32,14 +38,37 @@ public class BooksService {
 
 
     // For searches with multiple fields
+    public List<Book> search(SearchCriteria searchCriteria) {
 
+    }
 
-    // For searches with single fields only (4)
+    // For searches with single fields only / Convenience methods
+    // TODO: To update these methods to use the helper methods
+    public List<Book> searchByTitle(String title) {
+        return search(new SearchCriteria().setTitle(title));
+    }
 
+    public List<Book> searchByAuthor(String author) {
+        return search(new SearchCriteria().setAuthor(author));
+    }    
 
-    // Helper methods buildUrl and fetchNews
+    public List<Book> searchByPublisher(String publisher) {
+        return search(new SearchCriteria().setPublisher(publisher));
+    }
 
-    private String buildUrl(String endpoint) {}
+    public List<Book> searchByIsbn(String isbn) {
+        return search(new SearchCriteria().setIsbn(isbn));
+    }
+
+    // Helper methods buildUrl and fetchBooks
+    // To double check the documentation to ensure the params are supposed to be done this way....
+    private String buildUrl(String endpoint, Map<String, String> queryParams) {
+        UriComponentsBuilder builder = UriComponentsBuilder
+                                        .fromHttpUrl(config.getApiUrl() + endpoint)
+                                        .queryParam("apiKey", config.getApiKey());
+        queryParams.forEach(builder::queryParam);
+        return builder.toUriString();
+    }
 
     private SearchResponse fetchBooks(String url) {
         try {
