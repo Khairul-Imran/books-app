@@ -1,5 +1,8 @@
 package com.example.books_app_backend.Services;
 
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 
@@ -41,35 +44,70 @@ public class BooksService {
 
 
     // For searches with multiple fields
-    public List<Book> search(SearchCriteria searchCriteria) {
-
+    public SearchResponse search(SearchCriteria searchCriteria) {
+        String url = buildUrl("/volumes", searchCriteria.toQueryParams());
+        return fetchBooks(url);
     }
 
     // For searches with single fields only / Convenience methods
     // TODO: To update these methods to use the helper methods
-    public List<Book> searchByTitle(String title) {
-        return search(new SearchCriteria().setTitle(title));
-    }
+    // Might end up just using the main search method.
+    // public List<Book> searchByTitle(String title) {
+    //     return search(new SearchCriteria().setTitle(title));
+    // }
 
-    public List<Book> searchByAuthor(String author) {
-        return search(new SearchCriteria().setAuthor(author));
-    }    
+    // public List<Book> searchByAuthor(String author) {
+    //     return search(new SearchCriteria().setAuthor(author));
+    // }    
 
-    public List<Book> searchByPublisher(String publisher) {
-        return search(new SearchCriteria().setPublisher(publisher));
-    }
+    // public List<Book> searchByPublisher(String publisher) {
+    //     return search(new SearchCriteria().setPublisher(publisher));
+    // }
 
-    public List<Book> searchByIsbn(String isbn) {
-        return search(new SearchCriteria().setIsbn(isbn));
-    }
+    // public List<Book> searchByIsbn(String isbn) {
+    //     return search(new SearchCriteria().setIsbn(isbn));
+    // }
 
     // Helper methods buildUrl and fetchBooks
-    // To double check the documentation to ensure the params are supposed to be done this way....
     private String buildUrl(String endpoint, Map<String, String> queryParams) {
-        UriComponentsBuilder builder = UriComponentsBuilder
-                                        .fromHttpUrl(config.getApiUrl() + endpoint)
-                                        .queryParam("apiKey", config.getApiKey());
-        queryParams.forEach(builder::queryParam);
+        UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(config.getApiUrl() + endpoint);
+
+        // Building the q parameter.
+        if (queryParams != null && !queryParams.isEmpty()) {
+            StringBuilder searchQuery = new StringBuilder();
+
+            try {
+                // Handling the "general" search term if any.
+                if (queryParams.containsKey("q")) {
+                    searchQuery.append(URLEncoder.encode(queryParams.get("q"), StandardCharsets.UTF_8.toString()));
+                    queryParams.remove("q");
+                }
+
+                // Handling any other specific parameters given by user
+                // title / author / publisher / isbn
+                for (Map.Entry<String, String> entry : queryParams.entrySet()) {
+                    if (searchQuery.length() > 0) {
+                        searchQuery.append("+");
+                    }
+                    searchQuery.append(entry.getKey())
+                            .append(":")
+                            .append(URLEncoder.encode(entry.getValue(), StandardCharsets.UTF_8.toString()));
+                }
+
+                builder.queryParam("q", searchQuery.toString());
+
+            } catch (UnsupportedEncodingException uee) {
+                throw new BookServiceException("Error encoding URL parameter", uee);
+            }
+        }
+
+        // Add the API key at the end.
+        builder.queryParam("key", config.getApiKey());
+
+        // Other common parameters.
+        builder.queryParam("maxResults", 30);  // Default is 10, max is 30
+        builder.queryParam("langRestrict", "en");
+
         return builder.toUriString();
     }
 

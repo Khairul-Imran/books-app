@@ -14,11 +14,16 @@ public class SearchCriteria {
     // This is known as a parameter/criteria object
 
     // To consider, what happens if we do not get a valid result back based on the criteria?
-    
+    private String q; // New
     private String title;
     private String author;
     private String publisher;
     private String isbn;
+
+    public SearchCriteria setQ(String q) {
+        this.q = q;
+        return this;
+    }
 
     public SearchCriteria setTitle(String title) {
         this.title = title;
@@ -42,6 +47,7 @@ public class SearchCriteria {
 
     public Map<String, String> toQueryParams() {
         Map<String, String> fields = new HashMap<>();
+        if (q != null) fields.put("q", q); // New
         if (title != null) fields.put("intitle", title);
         if (author != null) fields.put("inauthor", author);
         if (publisher != null) fields.put("inpublisher", publisher);
