@@ -10,10 +10,13 @@ import org.springframework.http.MediaType;
 import org.springframework.http.RequestEntity;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import com.example.books_app_backend.Config.GoogleBooksApiConfig;
+import com.example.books_app_backend.Exceptions.BookDataParsingException;
+import com.example.books_app_backend.Exceptions.BookServiceException;
 import com.example.books_app_backend.Models.Book;
 import com.example.books_app_backend.Models.SearchCriteria;
 import com.example.books_app_backend.Models.SearchResponse;
@@ -70,7 +73,7 @@ public class BooksService {
         return builder.toUriString();
     }
 
-    private SearchResponse fetchBooks(String url) {
+    private SearchResponse fetchBooks(String url) throws BookServiceException {
         try {
             RequestEntity<Void> request = RequestEntity
                 .get(url)
@@ -80,17 +83,23 @@ public class BooksService {
             ResponseEntity<String> response = restTemplate.exchange(request, String.class);
 
             if (response.getStatusCode().is2xxSuccessful()) {
-                return booksResponseParser.parseBooksResponseData(response.getBody());
+                try {
+                    return booksResponseParser.parseBooksResponseData(response.getBody());
+                } catch (BookDataParsingException bdpe) {
+                    logger.error("Failed to parse books response: {}", bdpe.getMessage());
+                    throw new BookServiceException("Error parsing books data", bdpe);
+                }
             } else {
                 logger.error("Error response from Google Books API. Status: {}", response.getStatusCode());
-                // TODO: To throw an exception here
-
+                throw new BookServiceException("Failed to fetch books. Status: " + response.getStatusCode());
             }
 
+        } catch (RestClientException rce) {
+            logger.error("Error making request to Google Books API: {}", rce.getMessage());
+            throw new BookServiceException("Failed to connect to books service", rce);
         } catch (Exception e) {
-            logger.error("Error fetching news from API, e");
-            // TODO: To throw an exception here
-
+            logger.error("Unexpected error while fetching books: {}", e.getMessage());
+            throw new BookServiceException("Unexpected error occurred while fetching books", e);
         }
     }
 }
