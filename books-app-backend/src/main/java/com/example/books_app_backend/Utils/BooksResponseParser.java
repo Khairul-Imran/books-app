@@ -27,7 +27,6 @@ public class BooksResponseParser {
     // Keep in mind, they might not be returning all the available results
     // Need to somehow make this work in a sensible way
 
-
     public SearchResponse parseBooksResponseData(String jsonPayload) throws BookDataParsingException {
         try(JsonReader jsonReader = Json.createReader(new StringReader(jsonPayload))) {
             JsonObject jsonObject = jsonReader.readObject();
@@ -56,60 +55,166 @@ public class BooksResponseParser {
     }
 
     private int parseTotalItems(JsonObject jsonObject) {
-        return jsonObject.getInt("totalItems");
+        try {
+            return jsonObject.getInt("totalItems", 0);
+        } catch (Exception e) {
+            logger.warn("Could not parse totalItems, defaulting to 0.");
+            return 0;
+        }
     }
 
     private List<Book> parseBooks(JsonObject jsonObject) {
         List<Book> books = new ArrayList<>();
 
-        JsonArray booksArray = jsonObject.getJsonArray("items");
-        for (JsonValue bookValue : booksArray) {
-            JsonObject bookJson = bookValue.asJsonObject();
+        try {
+            JsonArray booksArray = jsonObject.getJsonArray("items");
 
-            String id = parseId(bookJson);
-            String title = parseTitle(bookJson);
-            List<String> authors = parseAuthors(bookJson);
-            String publisher = parsePublisher(bookJson);
-            String publishedDate = parsePublishedDate(bookJson);
-            String description = parseDescription(bookJson);
-            int pageCount = parsePageCount(bookJson);
-            List<String> categories = parseCategories(bookJson);
-            String language = parseLanguage(bookJson);
-            String isbn = parseIsbn(bookJson);
-            String thumbnailUrl = parseThumbnailUrl(bookJson);
-            boolean isEbook = parseIsEbook(bookJson);
-            String previewLink = parsePreviewLink(bookJson);
-            String infoLink = parseInfoLink(bookJson);
-            double averageRating = parseAverageRating(bookJson);
-            int ratingsCount = parseRatingsCount(bookJson);
-            int listPrice = parseListPrice(bookJson);
-            int retailPrice = parseRetailPrice(bookJson);
-            String currencyCode = parseCurrencyCode(bookJson);
+            if (booksArray == null) {
+                logger.warn("No items found in response.");
+                return books; // Returns an empty list instead of null.
+            }
 
-            books.add(new Book(id, title, authors, publisher, publishedDate, description, pageCount, categories, language,isbn, thumbnailUrl, isEbook, previewLink, infoLink, averageRating, ratingsCount, listPrice, retailPrice, currencyCode));
+            for (JsonValue bookValue : booksArray) {
+                try {
+                    JsonObject bookJson = bookValue.asJsonObject();
+                    System.out.println(bookJson);
+
+                    Book book = parseBookDetails(bookJson);
+                    books.add(book);
+                } catch (Exception e) {
+                    logger.warn("Error parsing book: {}", e.getMessage());
+                    continue; // Continue processing other books.
+                }
+            }
+        } catch (Exception e) {
+            logger.warn("Error parsing books array: {}", e.getMessage());
         }
 
         return books;
     }
 
+    // Handles individual book parsing.
+    private Book parseBookDetails(JsonObject bookJson) {
+        boolean isForSale = isForSale(bookJson); 
+
+        return new Book(
+            parseId(bookJson),
+            parseTitle(bookJson),
+            parseAuthors(bookJson),
+            parsePublisher(bookJson),
+            parsePublishedDate(bookJson),
+            parseDescription(bookJson),
+            parsePageCount(bookJson),
+            parseCategories(bookJson),
+            parseLanguage(bookJson),
+            parseIsbn(bookJson),
+            parseThumbnailUrl(bookJson),
+            parseIsEbook(bookJson),
+            parsePreviewLink(bookJson),
+            parseInfoLink(bookJson),
+            parseAverageRating(bookJson),
+            parseRatingsCount(bookJson),
+            parseSaleability(bookJson),
+            // Depends if it is saleable.
+            isForSale ? parseListPrice(bookJson) : 0,
+            isForSale ? parseRetailPrice(bookJson) : 0,
+            isForSale ? parseCurrencyCode(bookJson) : ""
+        );
+    }
+
+    // Some of the books are not for sale.
+    private boolean isForSale(JsonObject bookJson) {
+        try {
+            JsonObject saleInfo = bookJson.getJsonObject("saleInfo");
+            // Return true if for sale, false if not
+            if (saleInfo != null) {
+                return "FOR_SALE".equals(saleInfo.getString("saleability", "NOT_FOR_SALE"));
+            }
+            return false;
+        } catch (Exception e) {
+            logger.warn("Error checking saleability: {}", e.getMessage());
+            return false;
+        }
+    }
+
+    private String parseSaleability(JsonObject bookJson) {
+        try {
+            JsonObject saleInfo = bookJson.getJsonObject("saleInfo");
+            if (saleInfo != null) {
+                return saleInfo.getString("saleability", "UNKNOWN");
+            }
+        } catch (Exception e) {
+            logger.warn("Error parsing saleability: {}", e.getMessage());
+        }
+        return "UNKNOWN";
+    }
+
     private String parseCurrencyCode(JsonObject bookJson) {
-        return bookJson.getJsonObject("saleInfo").getJsonObject("retailPrice").getString("currencyCode", "");
+        try {
+            JsonObject saleInfo = bookJson.getJsonObject("saleInfo");
+            if (saleInfo != null) {
+                JsonObject retailPrice = saleInfo.getJsonObject("retailPrice");
+                if (retailPrice != null) {
+                    return retailPrice.getString("currencyCode", "USD");
+                }
+            }
+        } catch (Exception e) {
+            logger.warn("Error parsing currency code: {}", e.getMessage());
+        }
+
+        return "USD";
     }
 
     private int parseRetailPrice(JsonObject bookJson) {
-        return bookJson.getJsonObject("saleInfo").getJsonObject("retailPrice").getInt("amount");
+        try {
+            JsonObject saleInfo = bookJson.getJsonObject("saleInfo");
+            if (saleInfo != null) {
+                JsonObject retailPrice = saleInfo.getJsonObject("retailPrice");
+                if (retailPrice != null) {
+                    return retailPrice.getInt("amount", 0);
+                }
+            }
+        } catch (Exception e) {
+            logger.warn("Error parsing retail price: {}", e.getMessage());
+        }
+
+        return 0;
     }
 
     private int parseListPrice(JsonObject bookJson) {
-        return bookJson.getJsonObject("saleInfo").getJsonObject("listPrice").getInt("amount");
+        try {
+            JsonObject saleInfo = bookJson.getJsonObject("saleInfo");
+            if (saleInfo != null) {
+                JsonObject listPrice = saleInfo.getJsonObject("listPrice");
+                if (listPrice != null) {
+                    return listPrice.getInt("amount", 0);
+                }
+            }
+        } catch (Exception e) {
+            logger.warn("Error parsing list price: {}", e.getMessage());
+        }
+
+        return 0;
     }
 
     private int parseRatingsCount(JsonObject bookJson) {
-        return bookJson.getJsonObject("volumeInfo").getInt("ratingsCount");
+        try {
+            return bookJson.getJsonObject("volumeInfo").getInt("ratingsCount", 0);
+        } catch (Exception e) {
+            logger.warn("Error parsing ratings count: {}", e.getMessage());
+        }
+        
+        return 0;
     }
 
     private double parseAverageRating(JsonObject bookJson) {
-        return bookJson.getJsonObject("volumeInfo").getInt("averageRating");
+        try {
+            return bookJson.getJsonObject("volumeInfo").getJsonNumber("averageRating").doubleValue();
+        } catch (Exception e) {
+            logger.warn("Error parsing average rating: {}", e.getMessage());
+        }
+        
+        return 0.0;
     }
 
     private String parseInfoLink(JsonObject bookJson) {
@@ -121,11 +226,29 @@ public class BooksResponseParser {
     }
 
     private boolean parseIsEbook(JsonObject bookJson) {
-        return bookJson.getJsonObject("saleInfo").getBoolean("isEbook");
+        try {
+            return bookJson.getJsonObject("saleInfo").getBoolean("isEbook", false);
+        } catch (Exception e) {
+            logger.warn("Error parsing isEbook: {}", e.getMessage());
+        }
+        
+        return false;
     }
 
     private String parseThumbnailUrl(JsonObject bookJson) {
-        return bookJson.getJsonObject("volumeInfo").getJsonObject("imageLinks").getString("thumbnail", "");
+        try {
+            JsonObject volumeInfo = bookJson.getJsonObject("volumeInfo");
+            if (volumeInfo != null) {
+                JsonObject imageLinks = volumeInfo.getJsonObject("imageLinks");
+                if (imageLinks != null) {
+                    return imageLinks.getString("thumbnail", "");
+                }
+            }
+        } catch (Exception e) {
+            logger.warn("Error parsing thumbnail URL: {}", e.getMessage());
+        }
+
+        return "";
     }
 
     private String parseIsbn(JsonObject bookJson) {
@@ -162,7 +285,16 @@ public class BooksResponseParser {
     }
 
     private int parsePageCount(JsonObject bookJson) {
-        return bookJson.getJsonObject("volumeInfo").getInt("pageCount");
+        try {
+            JsonObject volumeInfo = bookJson.getJsonObject("volumeInfo");
+            if (volumeInfo != null) {
+                return volumeInfo.getInt("pageCount", 0);
+            }
+        } catch (Exception e) {
+            logger.warn("Error parsing page count: {}", e.getMessage());
+        }
+
+        return 0;
     }
 
     private String parseDescription(JsonObject bookJson) {

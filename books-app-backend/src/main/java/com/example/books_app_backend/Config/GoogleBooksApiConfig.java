@@ -9,13 +9,13 @@ import org.springframework.web.client.RestTemplate;
 @Configuration
 public class GoogleBooksApiConfig {
     
-    @Value("{googlebooksapi.url}")
+    @Value("${googlebooksapi.url}")
     private String apiUrl;
 
-    @Value("{googlebooksapi.key}")
+    @Value("${googlebooksapi.key}")
     private String apiKey;
 
-    @Value("{googlebooksapi.timeout}")
+    @Value("${googlebooksapi.timeout}")
     private int timeout;
 
     @Bean

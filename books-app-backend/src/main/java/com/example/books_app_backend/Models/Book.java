@@ -27,6 +27,7 @@ public class Book {
     private String infoLink;
     private double averageRating;
     private int ratingsCount;
+    private String saleability; // New
     private int listPrice;
     private int retailPrice;
     private String currencyCode;
