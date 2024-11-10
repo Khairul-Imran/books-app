@@ -34,3 +34,10 @@ build/
 
 # Ignore macOS system files
 .DS_Store
+
+# Ignore local properties file with real secrets
+application-local.properties
+
+# Ignore any properties files containing "local" or "secret"
+*local*.properties
+*secret*.properties
